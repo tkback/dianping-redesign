@@ -1,8 +1,8 @@
 import { Float } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useInView, useReducedMotion } from 'framer-motion'
-import { useMemo, useRef } from 'react'
-import type { CSSProperties } from 'react'
+import { Component, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import * as THREE from 'three'
 import type { World } from './data'
 
@@ -13,6 +13,26 @@ type IntentWorldProps = {
 
 type OrbProps = IntentWorldProps & {
   reduced: boolean
+}
+
+class WorldBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  render() {
+    return this.state.failed ? <div className="world-fallback-orb" /> : this.props.children
+  }
+}
+
+function canRenderWebGL() {
+  try {
+    return Boolean(document.createElement('canvas').getContext('webgl2'))
+  } catch {
+    return false
+  }
 }
 
 function Orb({ world, variant = 'hero', reduced }: OrbProps) {
@@ -130,6 +150,7 @@ export default function IntentWorld({ world, variant = 'hero' }: IntentWorldProp
   const container = useRef<HTMLDivElement>(null)
   const inView = useInView(container, { amount: 0.05 })
   const reduced = Boolean(useReducedMotion())
+  const [webgl] = useState(canRenderWebGL)
 
   return (
     <div
@@ -139,18 +160,24 @@ export default function IntentWorld({ world, variant = 'hero' }: IntentWorldProp
       aria-hidden="true"
     >
       <div className="world-static" />
-      <Canvas
-        dpr={[1, 1.5]}
-        camera={{ position: [0, 0, 6.2], fov: 42 }}
-        frameloop={!inView || reduced ? 'demand' : 'always'}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-      >
-        <ambientLight intensity={1.8} />
-        <directionalLight position={[4, 5, 6]} intensity={3.2} color="#ffffff" />
-        <pointLight position={[-4, -2, 3]} intensity={34} color={world.secondary} />
-        <pointLight position={[4, 1, -2]} intensity={26} color={world.color} />
-        <Orb world={world} variant={variant} reduced={reduced} />
-      </Canvas>
+      {webgl ? (
+        <WorldBoundary>
+          <Canvas
+            dpr={[1, 1.5]}
+            camera={{ position: [0, 0, 6.2], fov: 42 }}
+            frameloop={!inView || reduced ? 'demand' : 'always'}
+            gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+          >
+            <ambientLight intensity={1.8} />
+            <directionalLight position={[4, 5, 6]} intensity={3.2} color="#ffffff" />
+            <pointLight position={[-4, -2, 3]} intensity={34} color={world.secondary} />
+            <pointLight position={[4, 1, -2]} intensity={26} color={world.color} />
+            <Orb world={world} variant={variant} reduced={reduced} />
+          </Canvas>
+        </WorldBoundary>
+      ) : (
+        <div className="world-fallback-orb" />
+      )}
     </div>
   )
 }

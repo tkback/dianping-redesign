@@ -3,7 +3,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
-  AudioLines,
   BadgeCheck,
   Bookmark,
   Check,
@@ -62,7 +61,9 @@ export default function App() {
   const progress = useSpring(scrollYProgress, { stiffness: 140, damping: 28, mass: 0.3 })
   const searchInput = useRef<HTMLInputElement>(null)
   const [scrolled, setScrolled] = useState(false)
-  const [query, setQuery] = useState(prompts[0])
+  const [query, setQuery] = useState('')
+  const [promptIndex, setPromptIndex] = useState(0)
+  const [activePerson, setActivePerson] = useState(0)
   const [submittedQuery, setSubmittedQuery] = useState(prompts[0])
   const [selectedPlace, setSelectedPlace] = useState(places[0].id)
   const [saved, setSaved] = useState<number[]>([1])
@@ -77,6 +78,15 @@ export default function App() {
   const world = worlds[activeWorld]
   const insight = truthInsights[insightTab]
   const currentPlace = places.find((place) => place.id === selectedPlace) ?? places[0]
+  const currentPerson = portraits[activePerson]
+
+  useEffect(() => {
+    if (reduced) return
+    const timer = window.setInterval(() => {
+      setPromptIndex((current) => (current + 1) % prompts.length)
+    }, 4200)
+    return () => window.clearInterval(timer)
+  }, [reduced])
 
   useEffect(() => {
     const updateNav = () => setScrolled(window.scrollY > 28)
@@ -145,6 +155,13 @@ export default function App() {
     window.setTimeout(() => {
       document.getElementById('shortlist')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' })
     }, 120)
+  }
+
+  const usePersonPrompt = () => {
+    setQuery(currentPerson.prompt)
+    setSubmittedQuery(currentPerson.prompt)
+    setNotice(`已带入${currentPerson.name}的生活灵感`)
+    document.getElementById('shortlist')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' })
   }
 
   const backToSearch = () => {
@@ -216,7 +233,7 @@ export default function App() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   aria-label="描述你想要的生活"
-                  placeholder="说说你现在想去哪、和谁、想要什么感觉…"
+                  placeholder={`例如：${prompts[promptIndex]}`}
                 />
                 <button type="button" className="voice-button" onClick={voiceDemo} aria-label="填入一条语音灵感演示">
                   <Mic size={19} />
@@ -245,37 +262,73 @@ export default function App() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1.2, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
           >
-            <IntentWorld world={worlds[0]} />
-            <div className="world-caption world-caption--top">
-              <span>今晚</span>
-              <strong>松弛一点</strong>
-            </div>
-            <div className="world-caption world-caption--bottom">
-              <AudioLines size={16} />
-              <span>"不吵，但要有惊喜"</span>
-            </div>
-            {portraits.map((person, index) => (
-              <motion.figure
-                className={`portrait-card portrait-card--${index + 1}`}
-                key={person.name}
-                animate={reduced ? undefined : { y: [0, index % 2 ? 9 : -10, 0] }}
-                transition={{ duration: 5 + index, repeat: Infinity, ease: 'easeInOut' }}
-              >
-                <img src={person.image} alt={`${person.name}的城市生活肖像`} />
-                <figcaption>
-                  <strong>{person.name}</strong>
-                  <span>{person.role}</span>
-                </figcaption>
-              </motion.figure>
-            ))}
-            <div className="hero-match-card">
-              <div className="match-icon"><Check size={18} /></div>
-              <div>
-                <span>4 个人的偏好已对齐</span>
-                <strong>找到 3 个高分答案</strong>
+            <div className="planet-realm" aria-hidden="true">
+              <div className="planet-stars">
+                {Array.from({ length: 22 }, (_, index) => (
+                  <i
+                    key={index}
+                    style={{
+                      left: `${(index * 37 + 7) % 96}%`,
+                      top: `${(index * 53 + 11) % 88}%`,
+                      animationDelay: `${index * 0.23}s`,
+                    }}
+                  />
+                ))}
               </div>
-              <ArrowUpRight size={20} />
             </div>
+            <IntentWorld world={worlds[0]} />
+            <div className="hero-orbit hero-orbit--one" aria-hidden="true" />
+            <div className="hero-orbit hero-orbit--two" aria-hidden="true" />
+            <div className="hero-orbit hero-orbit--three" aria-hidden="true" />
+            <div className="world-caption world-caption--top">
+              <span>CITY LIFE PLANET</span>
+              <strong>每种喜欢，都有引力</strong>
+            </div>
+            <div className="planet-people" aria-label="城市星球居民">
+              {portraits.map((person, index) => (
+                <motion.button
+                  type="button"
+                  className={`orbital-person orbital-person--${index + 1} ${activePerson === index ? 'orbital-person--active' : ''}`}
+                  key={person.name}
+                  onMouseEnter={() => setActivePerson(index)}
+                  onFocus={() => setActivePerson(index)}
+                  onClick={() => setActivePerson(index)}
+                  aria-label={`查看${person.name}的城市故事`}
+                  aria-pressed={activePerson === index}
+                  animate={reduced ? undefined : { y: [0, index % 2 ? 8 : -9, 0] }}
+                  transition={{ duration: 4.8 + index * 0.35, repeat: Infinity, ease: 'easeInOut', delay: index * 0.12 }}
+                >
+                  <span className="orbital-avatar">
+                    <img src={person.image} alt={`${person.name}的城市生活肖像`} loading={index < 3 ? 'eager' : 'lazy'} />
+                  </span>
+                  <span className="orbital-name">{person.name}</span>
+                </motion.button>
+              ))}
+            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                className="person-story"
+                key={currentPerson.name}
+                initial={reduced ? false : { opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={reduced ? undefined : { opacity: 0, y: -8, scale: 0.98 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div className="person-story-top">
+                  <span>PLANET RESIDENT {String(activePerson + 1).padStart(2, '0')}</span>
+                  <span><i /> 灵感在线</span>
+                </div>
+                <div className="person-story-heading">
+                  <strong>{currentPerson.name}</strong>
+                  <span>{currentPerson.role}</span>
+                </div>
+                <p>{currentPerson.story}</p>
+                <div className="person-story-place"><MapPin size={13} /> {currentPerson.place}</div>
+                <button type="button" onClick={usePersonPrompt}>
+                  用 TA 的灵感找店 <ArrowUpRight size={15} />
+                </button>
+              </motion.div>
+            </AnimatePresence>
           </motion.div>
 
           <a className="scroll-cue" href="#shortlist">
@@ -509,7 +562,7 @@ export default function App() {
             <div className="canvas-head">
               <div><span className="live-dot" /> 周五逃跑计划 <small>4 人在线</small></div>
               <div className="collaborators">
-                {portraits.map((person) => <img key={person.name} src={person.image} alt={person.name} />)}
+                {portraits.slice(0, 3).map((person) => <img key={person.name} src={person.image} alt={person.name} />)}
                 <span>你</span>
                 <button onClick={() => setNotice('邀请链接已准备好 · 演示')} aria-label="邀请朋友"><Plus size={17} /></button>
               </div>
