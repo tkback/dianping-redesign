@@ -1,10 +1,10 @@
-import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles.css'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+const root = document.getElementById('root')
+if (root) {
+  // 标记已挂载，移除 loading 占位
+  root.classList.add('loaded')
+  ReactDOM.createRoot(root).render(<App />)
+}

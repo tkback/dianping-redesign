@@ -8,11 +8,11 @@ export default defineConfig({
     host: '0.0.0.0',
   },
   build: {
+    cssCodeSplit: false,
     rollupOptions: {
       output: {
         manualChunks: {
           three: ['three', '@react-three/fiber', '@react-three/drei'],
-          motion: ['framer-motion'],
         },
       },
     },
